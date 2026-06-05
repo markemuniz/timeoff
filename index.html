@@ -589,7 +589,7 @@ let currentView = 'calendar';
 
 // --- PERSISTENCE: save to Firebase ---
 function saveToFirebase() {
-  // Serialize dates as ISO strings for JSON round-trip
+  setFirebaseStatus('saving');
   const payload = {
     sourceFiles,
     records: allRecords.map(r => ({
@@ -598,14 +598,28 @@ function saveToFirebase() {
       end:   r.end   instanceof Date ? r.end.toISOString()   : r.end,
     }))
   };
-  db.ref(STORE_KEY).set(payload).catch(err => console.warn('Firebase save error:', err));
+  db.ref(STORE_KEY).set(payload)
+    .then(() => {
+      setFirebaseStatus('ok');
+      showToast('Saved to Firebase ✓');
+    })
+    .catch(err => {
+      setFirebaseStatus('error');
+      showToast('Firebase save FAILED: ' + err.message);
+      console.error('Firebase save error:', err);
+    });
 }
 
 // --- PERSISTENCE: load from Firebase on startup ---
 function loadFromFirebase() {
+  setFirebaseStatus('loading');
   db.ref(STORE_KEY).once('value').then(snapshot => {
     const data = snapshot.val();
-    if (!data || !data.records || data.records.length === 0) return;
+    if (!data || !data.records || data.records.length === 0) {
+      setFirebaseStatus('ok');
+      showToast('Connected to Firebase — no saved data yet');
+      return;
+    }
     allRecords = data.records.map(r => ({
       ...r,
       start: new Date(r.start),
@@ -617,8 +631,27 @@ function loadFromFirebase() {
     updateSummaryBar();
     showControls();
     render();
-    showToast('Loaded ' + allRecords.length + ' saved requests');
-  }).catch(err => console.warn('Firebase load error:', err));
+    setFirebaseStatus('ok');
+    showToast('Loaded ' + allRecords.length + ' requests from Firebase ✓');
+  }).catch(err => {
+    setFirebaseStatus('error');
+    showToast('Firebase load FAILED: ' + err.message);
+    console.error('Firebase load error:', err);
+  });
+}
+
+// --- FIREBASE STATUS INDICATOR ---
+function setFirebaseStatus(status) {
+  const el = document.getElementById('fbStatus');
+  if (!el) return;
+  const states = {
+    loading: { dot: '#f59e0b', label: 'Connecting...' },
+    ok:      { dot: '#22c55e', label: 'Firebase synced' },
+    saving:  { dot: '#3b82f6', label: 'Saving...' },
+    error:   { dot: '#ef4444', label: 'Firebase error — check rules' },
+  };
+  const s = states[status] || states.ok;
+  el.innerHTML = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + s.dot + ';margin-right:6px;flex-shrink:0"></span>' + s.label;
 }
 
 // --- TOAST NOTIFICATION ---
