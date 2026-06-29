@@ -2,518 +2,434 @@
 <html lang="en">
 <head>
   <link rel="icon" type="image/png" href="favicon.png">
-</head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TTA Time-Off Calendar</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
-<style>
-  :root {
-    --red: #e63000;
-    --red-dark: #c42800;
-    --cream: #f5f0e8;
-    --cream-dark: #ece5d6;
-    --cream-border: #d8cfbb;
-    --text: #1a1208;
-    --text-secondary: #5a4e3a;
-    --muted: #9a8e7a;
-    --surface: #ffffff;
-    --bg: #f7f3ec;
-    --personal: #6b3fa0;
-    --personal-bg: #f2ecfa;
-    --unpaid: #1a5f80;
-    --unpaid-bg: #e5f3f9;
-    --holiday: #c42800;
-    --holiday-bg: #fdecea;
-    --other: #2a6e42;
-    --other-bg: #eaf5ee;
-  }
-
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: Arial, Helvetica, sans-serif;
-    font-weight: 700;
-    font-size: 14px;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-  }
-
-  /* HEADER / LOGO BAR */
-  .logo-bar {
-    background: var(--red);
-    padding: 0;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    flex-shrink: 0;
-  }
-  .logo-bar img {
-    height: 90px;
-    display: block;
-  }
-
-  /* TOOL TITLE BAR */
-  .title-bar {
-    background: var(--cream);
-    border-bottom: 2px solid var(--cream-border);
-    padding: 10px 32px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 12px;
-    flex-shrink: 0;
-  }
-  .title-bar-label {
-    font-size: 0.78rem;
-    font-weight: 700;
-    color: var(--text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-  }
-
-  /* SUMMARY BAR */
-  .summary-bar {
-    padding: 10px 32px;
-    background: var(--red);
-    display: flex;
-    gap: 28px;
-    flex-wrap: wrap;
-    flex-shrink: 0;
-  }
-  .stat { display: flex; align-items: baseline; gap: 7px; }
-  .stat-val { font-weight: 700; font-size: 1.15rem; color: var(--cream); }
-  .stat-label { font-weight: 700; font-size: 0.72rem; color: rgba(245,240,232,0.75); text-transform: uppercase; letter-spacing: 0.06em; }
-
-  /* CONTROLS */
-  .controls {
-    padding: 10px 32px;
-    background: var(--surface);
-    border-bottom: 1px solid var(--cream-border);
-    display: flex;
-    align-items: center;
-    gap: 20px;
-    flex-wrap: wrap;
-    flex-shrink: 0;
-  }
-
-  .filter-group {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 0.78rem;
-    font-weight: 700;
-    color: var(--text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-
-  select {
-    background: var(--surface);
-    border: 1.5px solid var(--cream-border);
-    color: var(--text);
-    font-family: Arial, Helvetica, sans-serif;
-    font-weight: 700;
-    font-size: 0.8rem;
-    padding: 5px 10px;
-    border-radius: 4px;
-    outline: none;
-    cursor: pointer;
-  }
-  select:focus { border-color: var(--red); }
-
-  .legend { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; margin-left: auto; }
-  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 0.75rem; font-weight: 700; color: var(--text-secondary); }
-  .legend-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
-
-  /* NAV BAR */
-  .nav-bar {
-    padding: 10px 32px;
-    background: var(--surface);
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    border-bottom: 1px solid var(--cream-border);
-    flex-shrink: 0;
-  }
-
-  .nav-btn {
-    background: none;
-    border: 1.5px solid var(--cream-border);
-    color: var(--text-secondary);
-    font-family: Arial, Helvetica, sans-serif;
-    font-weight: 700;
-    font-size: 0.8rem;
-    padding: 5px 14px;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: all 0.15s;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-  }
-  .nav-btn:hover { border-color: var(--red); color: var(--red); background: #fff5f3; }
-
-  .month-label {
-    font-weight: 700;
-    font-size: 1.1rem;
-    color: var(--text);
-    letter-spacing: 0.02em;
-    text-transform: uppercase;
-  }
-
-  .view-toggle {
-    margin-left: auto;
-    display: flex;
-    border: 1.5px solid var(--cream-border);
-    border-radius: 4px;
-    overflow: hidden;
-  }
-  .view-btn {
-    background: none;
-    border: none;
-    color: var(--text-secondary);
-    font-family: Arial, Helvetica, sans-serif;
-    font-weight: 700;
-    font-size: 0.78rem;
-    padding: 5px 14px;
-    cursor: pointer;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    transition: all 0.15s;
-  }
-  .view-btn.active { background: var(--red); color: #fff; }
-  .view-btn:hover:not(.active) { background: var(--cream); color: var(--text); }
-
-  /* MAIN CONTENT AREA */
-  #mainContent { flex: 1; overflow-y: auto; }
-
-  /* CALENDAR */
-  .calendar-grid { padding: 18px 32px 32px; }
-
-  .day-headers {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 3px;
-    margin-bottom: 3px;
-  }
-  .day-header {
-    text-align: center;
-    font-size: 0.72rem;
-    font-weight: 700;
-    color: var(--text-secondary);
-    letter-spacing: 0.07em;
-    text-transform: uppercase;
-    padding: 6px 0;
-  }
-
-  .calendar-weeks { display: flex; flex-direction: column; gap: 3px; }
-
-  /* Each week = a positioned container with the day-cell grid behind and event lanes floating above */
-  .calendar-week {
-    position: relative;
-    min-height: 112px;
-  }
-
-  /* Day cell grid — background layer */
-  .week-days {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 3px;
-    height: 100%;
-    min-height: 112px;
-  }
-
-  .calendar-day {
-    background: var(--surface);
-    border: 1.5px solid var(--cream-border);
-    border-radius: 5px;
-    padding: 7px 7px 24px 7px;
-    min-height: 112px;
-    cursor: default;
-    transition: border-color 0.1s;
-  }
-  .calendar-day:hover { border-color: #b0a090; }
-  .calendar-day.other-month { background: var(--cream); opacity: 0.6; }
-  .calendar-day.today { border-color: var(--red); border-width: 2px; }
-  .calendar-day.today .day-num { color: var(--red); }
-
-  .day-num {
-    font-size: 0.75rem;
-    font-weight: 700;
-    color: var(--muted);
-  }
-
-  /* Event lanes layer — floats above the day grid */
-  .week-events {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    pointer-events: none;
-  }
-
-  /* A single event lane row — each record gets one lane slot */
-  .event-lane {
-    position: absolute;
-    left: 0;
-    right: 0;
-    height: 20px;
-    pointer-events: none;
-  }
-
-  /* The visible event block inside a lane */
-  .cal-event {
-    position: absolute;
-    height: 22px;
-    font-size: 0.7rem;
-    font-weight: 700;
-    padding: 0 8px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    cursor: pointer;
-    transition: opacity 0.12s;
-    pointer-events: all;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    border-radius: 0;
-    border-left: none;
-  }
-  /* Caps control rounding and left border */
-  .cal-event.cap-start { border-left: 3px solid; border-radius: 4px 0 0 4px; }
-  .cal-event.cap-end   { border-radius: 0 4px 4px 0; }
-  .cal-event.cap-start.cap-end { border-radius: 4px; }
-  .cal-event:hover { opacity: 0.78; }
-
-  .overflow-count {
-    position: absolute;
-    bottom: 4px;
-    left: 4px;
-    font-size: 0.65rem;
-    font-weight: 700;
-    color: var(--muted);
-    cursor: pointer;
-    pointer-events: all;
-    background: var(--surface);
-    padding: 0 3px;
-    border-radius: 2px;
-  }
-  .overflow-count:hover { color: var(--text-secondary); }
-
-  /* LIST VIEW */
-  .list-view { padding: 22px 32px; }
-
-  .list-month-group { margin-bottom: 30px; }
-  .list-month-title {
-    font-weight: 700;
-    font-size: 0.88rem;
-    color: var(--red);
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    padding-bottom: 8px;
-    border-bottom: 2px solid var(--red);
-    margin-bottom: 8px;
-  }
-
-  .list-header {
-    display: grid;
-    grid-template-columns: 160px 150px 100px 100px 70px 1fr;
-    gap: 12px;
-    padding: 5px 8px 8px;
-    font-size: 0.7rem;
-    font-weight: 700;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 0.07em;
-    border-bottom: 1px solid var(--cream-border);
-    margin-bottom: 2px;
-  }
-
-  .list-row {
-    display: grid;
-    grid-template-columns: 160px 150px 100px 100px 70px 1fr;
-    gap: 12px;
-    padding: 8px 8px;
-    border-bottom: 1px solid var(--cream-border);
-    align-items: center;
-    font-size: 0.82rem;
-    cursor: pointer;
-    border-radius: 4px;
-    transition: background 0.1s;
-  }
-  .list-row:hover { background: var(--cream); }
-
-  .type-badge {
-    font-size: 0.7rem;
-    font-weight: 700;
-    padding: 2px 7px;
-    border-radius: 3px;
-    display: inline-block;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-  }
-  .type-badge.Personal { background: var(--personal-bg); color: var(--personal); }
-  .type-badge.Unpaid { background: var(--unpaid-bg); color: var(--unpaid); }
-  .type-badge.Holiday { background: var(--holiday-bg); color: var(--holiday); }
-  .type-badge.Other { background: var(--other-bg); color: var(--other); }
-
-  .name-cell { font-weight: 700; color: var(--text); }
-  .date-cell { font-weight: 700; color: var(--text-secondary); }
-  .hours-cell { font-weight: 700; color: var(--red); }
-  .src-cell { font-weight: 700; color: var(--muted); font-size: 0.72rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-  /* MODAL */
-  .modal-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(26,18,8,0.5);
-    z-index: 100;
-    justify-content: center;
-    align-items: center;
-  }
-  .modal-overlay.open { display: flex; }
-
-  .modal {
-    background: var(--surface);
-    border: 2px solid var(--cream-border);
-    border-radius: 8px;
-    padding: 24px 28px;
-    max-width: 460px;
-    width: 90%;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.12);
-  }
-
-  .modal-header {
-    font-weight: 700;
-    font-size: 1.05rem;
-    color: var(--text);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin-bottom: 14px;
-    padding-bottom: 12px;
-    border-bottom: 2px solid var(--red);
-  }
-
-  .modal-row {
-    display: flex;
-    justify-content: space-between;
-    padding: 7px 0;
-    font-size: 0.82rem;
-    border-bottom: 1px solid var(--cream-border);
-    gap: 12px;
-  }
-  .modal-label { color: var(--muted); font-weight: 700; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; }
-  .modal-val { color: var(--text); text-align: right; font-weight: 700; }
-
-  .modal-close {
-    margin-top: 18px;
-    background: var(--red);
-    border: none;
-    color: #fff;
-    font-family: Arial, Helvetica, sans-serif;
-    font-weight: 700;
-    font-size: 0.8rem;
-    padding: 7px 18px;
-    border-radius: 4px;
-    cursor: pointer;
-    float: right;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    transition: opacity 0.15s;
-  }
-  .modal-close:hover { opacity: 0.85; }
-
-  /* UPLOAD FOOTER */
-  .upload-footer {
-    background: var(--cream);
-    border-top: 2px solid var(--cream-border);
-    padding: 14px 32px;
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    flex-wrap: wrap;
-    flex-shrink: 0;
-  }
-
-  .upload-footer-label {
-    font-size: 0.75rem;
-    font-weight: 700;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    white-space: nowrap;
-  }
-
-  .upload-btn {
-    background: var(--red);
-    color: #fff;
-    border: none;
-    padding: 8px 18px;
-    font-family: Arial, Helvetica, sans-serif;
-    font-size: 0.8rem;
-    font-weight: 700;
-    cursor: pointer;
-    border-radius: 4px;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    transition: opacity 0.15s;
-    white-space: nowrap;
-  }
-  .upload-btn:hover { opacity: 0.88; }
-  #fileInput { display: none; }
-
-  .file-tags { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
-  .file-tag {
-    background: #fff5f3;
-    border: 1.5px solid #f0c8c0;
-    padding: 3px 10px;
-    font-size: 0.73rem;
-    font-weight: 700;
-    color: var(--red-dark);
-    border-radius: 4px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-  }
-  .file-tag .remove { cursor: pointer; color: #c08080; font-size: 1rem; line-height: 1; font-weight: 700; }
-  .file-tag .remove:hover { color: var(--red); }
-
-  /* EMPTY */
-  .empty { padding: 60px 36px; text-align: center; }
-  .empty-icon { font-size: 2.5rem; margin-bottom: 16px; }
-  .empty-title { font-weight: 700; font-size: 1.1rem; margin-bottom: 8px; color: var(--text); text-transform: uppercase; letter-spacing: 0.06em; }
-  .empty-sub { font-size: 0.82rem; font-weight: 700; line-height: 1.7; color: var(--muted); }
-
-  .drop-active { outline: 3px dashed var(--red); outline-offset: -4px; }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TTA Time-Off Calendar</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+  <style>
+    :root {
+      --red: #e63000;
+      --red-dark: #c42800;
+      --cream: #f5f0e8;
+      --cream-dark: #ece5d6;
+      --cream-border: #d8cfbb;
+      --text: #1a1208;
+      --text-secondary: #5a4e3a;
+      --muted: #9a8e7a;
+      --surface: #ffffff;
+      --bg: #f7f3ec;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: Arial, Helvetica, sans-serif;
+      font-weight: 700;
+      font-size: 14px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .logo-bar {
+      background: var(--red);
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .logo-bar img { height: 90px; display: block; }
+    .title-bar {
+      background: var(--cream);
+      border-bottom: 2px solid var(--cream-border);
+      padding: 10px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+    .title-bar-label {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+    #fbStatus {
+      display: flex;
+      align-items: center;
+      font-size: 0.73rem;
+      font-weight: 700;
+      color: var(--muted);
+      font-family: Arial, sans-serif;
+    }
+    .summary-bar {
+      padding: 10px 32px;
+      background: var(--red);
+      display: flex;
+      gap: 28px;
+      flex-wrap: wrap;
+      flex-shrink: 0;
+    }
+    .stat { display: flex; align-items: baseline; gap: 7px; }
+    .stat-val { font-weight: 700; font-size: 1.15rem; color: var(--cream); }
+    .stat-label { font-weight: 700; font-size: 0.72rem; color: rgba(245,240,232,0.75); text-transform: uppercase; letter-spacing: 0.06em; }
+    .controls {
+      padding: 10px 32px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--cream-border);
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      flex-wrap: wrap;
+      flex-shrink: 0;
+    }
+    .filter-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    select {
+      background: var(--surface);
+      border: 1.5px solid var(--cream-border);
+      color: var(--text);
+      font-family: Arial, Helvetica, sans-serif;
+      font-weight: 700;
+      font-size: 0.8rem;
+      padding: 5px 10px;
+      border-radius: 4px;
+      outline: none;
+      cursor: pointer;
+    }
+    select:focus { border-color: var(--red); }
+    .legend { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; margin-left: auto; }
+    .legend-item { display: flex; align-items: center; gap: 5px; font-size: 0.75rem; font-weight: 700; color: var(--text-secondary); }
+    .legend-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+    .nav-bar {
+      padding: 10px 32px;
+      background: var(--surface);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 1px solid var(--cream-border);
+      flex-shrink: 0;
+    }
+    .nav-btn {
+      background: none;
+      border: 1.5px solid var(--cream-border);
+      color: var(--text-secondary);
+      font-family: Arial, Helvetica, sans-serif;
+      font-weight: 700;
+      font-size: 0.8rem;
+      padding: 5px 14px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.15s;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .nav-btn:hover { border-color: var(--red); color: var(--red); background: #fff5f3; }
+    .month-label {
+      font-weight: 700;
+      font-size: 1.1rem;
+      color: var(--text);
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+    .view-toggle {
+      margin-left: auto;
+      display: flex;
+      border: 1.5px solid var(--cream-border);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .view-btn {
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      font-family: Arial, Helvetica, sans-serif;
+      font-weight: 700;
+      font-size: 0.78rem;
+      padding: 5px 14px;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      transition: all 0.15s;
+    }
+    .view-btn.active { background: var(--red); color: #fff; }
+    .view-btn:hover:not(.active) { background: var(--cream); color: var(--text); }
+    #mainContent { flex: 1; overflow-y: auto; }
+    .calendar-grid { padding: 18px 32px 32px; }
+    .day-headers {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 3px;
+      margin-bottom: 3px;
+    }
+    .day-header {
+      text-align: center;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--text-secondary);
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      padding: 6px 0;
+    }
+    .calendar-weeks { display: flex; flex-direction: column; gap: 3px; }
+    .calendar-week { position: relative; min-height: 112px; }
+    .calendar-day {
+      background: var(--surface);
+      border: 1.5px solid var(--cream-border);
+      border-radius: 5px;
+      padding: 7px 7px 24px 7px;
+      min-height: 112px;
+      cursor: default;
+      transition: border-color 0.1s;
+    }
+    .calendar-day:hover { border-color: #b0a090; }
+    .calendar-day.other-month { background: var(--cream); opacity: 0.6; }
+    .calendar-day.today { border-color: var(--red); border-width: 2px; }
+    .calendar-day.today .day-num { color: var(--red); }
+    .day-num { font-size: 0.75rem; font-weight: 700; color: var(--muted); }
+    .cal-event {
+      position: absolute;
+      height: 22px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      padding: 0 7px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      cursor: pointer;
+      transition: opacity 0.12s;
+      pointer-events: all;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      border-radius: 0;
+      border-left: none;
+    }
+    .cal-event.cap-start { border-left: 3px solid; border-radius: 4px 0 0 4px; }
+    .cal-event.cap-end   { border-radius: 0 4px 4px 0; }
+    .cal-event.cap-start.cap-end { border-radius: 4px; }
+    .cal-event:hover { opacity: 0.78; }
+    /* Partial-day clock badge on the event bar */
+    .cal-event .time-badge {
+      font-size: 0.6rem;
+      font-weight: 700;
+      opacity: 0.8;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .list-view { padding: 22px 32px; }
+    .list-month-group { margin-bottom: 30px; }
+    .list-month-title {
+      font-weight: 700;
+      font-size: 0.88rem;
+      color: var(--red);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      padding-bottom: 8px;
+      border-bottom: 2px solid var(--red);
+      margin-bottom: 8px;
+    }
+    .list-header {
+      display: grid;
+      grid-template-columns: 160px 160px 130px 130px 70px 1fr;
+      gap: 12px;
+      padding: 5px 8px 8px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      border-bottom: 1px solid var(--cream-border);
+      margin-bottom: 2px;
+    }
+    .list-row {
+      display: grid;
+      grid-template-columns: 160px 160px 130px 130px 70px 1fr;
+      gap: 12px;
+      padding: 8px 8px;
+      border-bottom: 1px solid var(--cream-border);
+      align-items: center;
+      font-size: 0.82rem;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: background 0.1s;
+    }
+    .list-row:hover { background: var(--cream); }
+    .type-badge {
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 3px;
+      display: inline-block;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .type-badge.Personal { background: #f2ecfa; color: #6b3fa0; }
+    .type-badge.Unpaid   { background: #e5f3f9; color: #1a5f80; }
+    .type-badge.Holiday  { background: #fdecea; color: #c42800; }
+    .type-badge.Other    { background: #eaf5ee; color: #2a6e42; }
+    /* Partial badge in list */
+    .partial-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: #c42800;
+      background: #fdecea;
+      border: 1px solid #f0c8c0;
+      border-radius: 3px;
+      padding: 1px 5px;
+      margin-left: 4px;
+      white-space: nowrap;
+    }
+    .name-cell { font-weight: 700; color: var(--text); }
+    .date-cell { font-weight: 700; color: var(--text-secondary); font-size: 0.78rem; }
+    .hours-cell { font-weight: 700; color: var(--red); }
+    .src-cell { font-weight: 700; color: var(--muted); font-size: 0.72rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(26,18,8,0.5);
+      z-index: 100;
+      justify-content: center;
+      align-items: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--surface);
+      border: 2px solid var(--cream-border);
+      border-radius: 8px;
+      padding: 24px 28px;
+      max-width: 460px;
+      width: 90%;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+    }
+    .modal-header {
+      font-weight: 700;
+      font-size: 1.05rem;
+      color: var(--text);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 14px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid var(--red);
+    }
+    .modal-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 7px 0;
+      font-size: 0.82rem;
+      border-bottom: 1px solid var(--cream-border);
+      gap: 12px;
+    }
+    .modal-label { color: var(--muted); font-weight: 700; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; }
+    .modal-val { color: var(--text); text-align: right; font-weight: 700; }
+    .modal-close {
+      margin-top: 18px;
+      background: var(--red);
+      border: none;
+      color: #fff;
+      font-family: Arial, Helvetica, sans-serif;
+      font-weight: 700;
+      font-size: 0.8rem;
+      padding: 7px 18px;
+      border-radius: 4px;
+      cursor: pointer;
+      float: right;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      transition: opacity 0.15s;
+    }
+    .modal-close:hover { opacity: 0.85; }
+    .upload-footer {
+      background: var(--cream);
+      border-top: 2px solid var(--cream-border);
+      padding: 14px 32px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+      flex-shrink: 0;
+    }
+    .upload-footer-label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      white-space: nowrap;
+    }
+    .upload-btn {
+      background: var(--red);
+      color: #fff;
+      border: none;
+      padding: 8px 18px;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 0.8rem;
+      font-weight: 700;
+      cursor: pointer;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      transition: opacity 0.15s;
+      white-space: nowrap;
+    }
+    .upload-btn:hover { opacity: 0.88; }
+    #fileInput { display: none; }
+    .file-tags { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+    .file-tag {
+      background: #fff5f3;
+      border: 1.5px solid #f0c8c0;
+      padding: 3px 10px;
+      font-size: 0.73rem;
+      font-weight: 700;
+      color: var(--red-dark);
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    .file-tag .remove { cursor: pointer; color: #c08080; font-size: 1rem; line-height: 1; font-weight: 700; }
+    .file-tag .remove:hover { color: var(--red); }
+    .empty { padding: 60px 36px; text-align: center; }
+    .empty-icon { font-size: 2.5rem; margin-bottom: 16px; }
+    .empty-title { font-weight: 700; font-size: 1.1rem; margin-bottom: 8px; color: var(--text); text-transform: uppercase; letter-spacing: 0.06em; }
+    .empty-sub { font-size: 0.82rem; font-weight: 700; line-height: 1.7; color: var(--muted); }
+    .drop-active { outline: 3px dashed var(--red); outline-offset: -4px; }
+  </style>
 </head>
 <body>
 
-<!-- LOGO BAR -->
 <div class="logo-bar">
-  <img src="data:image/png;base64,/9j/4AAQSkZJRgABAQ...[long string]...//Z" alt="The Travel Agency">
+  <img src="favicon.png" alt="The Travel Agency" style="height:70px;padding:10px 0">
 </div>
 
-<!-- TITLE + SUMMARY -->
 <div class="title-bar">
   <div class="title-bar-label">Time-Off Calendar &mdash; Approved Requests</div>
+  <div id="fbStatus">
+    <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#f59e0b;margin-right:6px;flex-shrink:0"></span>Connecting...
+  </div>
 </div>
 
 <div id="summaryBar" class="summary-bar" style="display:none"></div>
 
-<!-- CONTROLS -->
 <div class="controls" id="controls" style="display:none">
   <div class="filter-group">
     <span>Employee</span>
@@ -526,7 +442,6 @@
   <div class="legend" id="employeeLegend"></div>
 </div>
 
-<!-- NAV BAR -->
 <div class="nav-bar" id="navBar" style="display:none">
   <button class="nav-btn" onclick="changeMonth(-1)">&#8592; Prev</button>
   <button class="nav-btn" onclick="changeMonth(1)">Next &#8594;</button>
@@ -537,7 +452,6 @@
   </div>
 </div>
 
-<!-- MAIN CONTENT -->
 <div id="mainContent">
   <div class="empty">
     <div class="empty-icon">📅</div>
@@ -546,7 +460,6 @@
   </div>
 </div>
 
-<!-- UPLOAD FOOTER -->
 <div class="upload-footer">
   <span class="upload-footer-label">Reports:</span>
   <div class="file-tags" id="fileTags"></div>
@@ -555,7 +468,6 @@
   <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" multiple>
 </div>
 
-<!-- MODAL -->
 <div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
   <div class="modal" id="modal">
     <div class="modal-header" id="modalName"></div>
@@ -566,7 +478,6 @@
 </div>
 
 <script>
-// --- FIREBASE CONFIG ---
 const firebaseConfig = {
   apiKey: "AIzaSyBRWr4kMWFu2xURh19AtoCoi8eMLBWvaLA",
   authDomain: "time-off-calendar-37f1e.firebaseapp.com",
@@ -579,7 +490,7 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
-const STORE_KEY = 'tta-timeoff-v1';
+const STORE_KEY = 'tta-timeoff-v2'; // v2: adds startTime/endTime/isPartial fields
 
 let allRecords = [];
 let sourceFiles = [];
@@ -587,7 +498,60 @@ let currentYear = new Date().getFullYear();
 let currentMonth = new Date().getMonth();
 let currentView = 'calendar';
 
-// --- PERSISTENCE: save to Firebase ---
+// ── Helpers ────────────────────────────────────────────────────────────────
+
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const DAYS   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+// Parse a date string as LOCAL midnight (avoids UTC-midnight rollback bug)
+function parseLocalDate(val) {
+  if (!val || val === '') return null;
+  if (val instanceof Date) { const d = new Date(val); d.setHours(0,0,0,0); return d; }
+  const s = String(val).trim();
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return new Date(Number(m[1]), Number(m[2])-1, Number(m[3]));
+  const d = new Date(s);
+  return isNaN(d) ? null : d;
+}
+
+// Normalise time string: "3:00 pm" -> "3:00 PM", "" -> ""
+function fmtTime(t) {
+  if (!t) return '';
+  const s = String(t).trim();
+  if (!s) return '';
+  return s.replace(/\s*(am|pm)\s*$/i, m => ' ' + m.trim().toUpperCase());
+}
+
+// Is the time value an all-day boundary? (midnight start or 11:59 pm end)
+function isAllDayStart(t) { return !t || /^12:00\s*am$/i.test(String(t).trim()); }
+function isAllDayEnd(t)   { return !t || /^11:59\s*pm$/i.test(String(t).trim()); }
+
+function d0(d) { const x = new Date(d); x.setHours(0,0,0,0); return x; }
+function fmtDate(d) { if (!d) return '—'; return (d.getMonth()+1) + '/' + d.getDate() + '/' + d.getFullYear(); }
+function fmtShortDate(d) { if (!d) return '—'; return (d.getMonth()+1) + '/' + d.getDate(); }
+
+function typeClass(type) {
+  if (/personal/i.test(type)) return 'Personal';
+  if (/unpaid/i.test(type))   return 'Unpaid';
+  if (/holiday/i.test(type))  return 'Holiday';
+  return 'Other';
+}
+
+// ── Firebase ───────────────────────────────────────────────────────────────
+
+function setFirebaseStatus(status) {
+  const el = document.getElementById('fbStatus');
+  if (!el) return;
+  const states = {
+    loading: { dot: '#f59e0b', label: 'Connecting...' },
+    ok:      { dot: '#22c55e', label: 'Firebase synced' },
+    saving:  { dot: '#3b82f6', label: 'Saving...' },
+    error:   { dot: '#ef4444', label: 'Firebase error' },
+  };
+  const s = states[status] || states.ok;
+  el.innerHTML = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + s.dot + ';margin-right:6px;flex-shrink:0"></span>' + s.label;
+}
+
 function saveToFirebase() {
   setFirebaseStatus('saving');
   const payload = {
@@ -599,32 +563,36 @@ function saveToFirebase() {
     }))
   };
   db.ref(STORE_KEY).set(payload)
-    .then(() => {
-      setFirebaseStatus('ok');
-      showToast('Saved to Firebase ✓');
-    })
-    .catch(err => {
-      setFirebaseStatus('error');
-      showToast('Firebase save FAILED: ' + err.message);
-      console.error('Firebase save error:', err);
-    });
+    .then(() => { setFirebaseStatus('ok'); showToast('Saved to Firebase ✓'); })
+    .catch(err => { setFirebaseStatus('error'); showToast('Save failed: ' + err.message); });
 }
 
-// --- PERSISTENCE: load from Firebase on startup ---
 function loadFromFirebase() {
   setFirebaseStatus('loading');
-  db.ref(STORE_KEY).once('value').then(snapshot => {
-    const data = snapshot.val();
+  db.ref(STORE_KEY).once('value').then(snap => {
+    const data = snap.val();
     if (!data || !data.records || data.records.length === 0) {
       setFirebaseStatus('ok');
-      showToast('Connected to Firebase — no saved data yet');
+      showToast('Connected — no saved data yet');
       return;
     }
-    allRecords = data.records.map(r => ({
-      ...r,
-      start: new Date(r.start),
-      end:   new Date(r.end),
-    }));
+    allRecords = data.records.map(r => {
+      // Migrate old records that lack time fields (saved before partial-day support)
+      const startTime   = r.startTime   || '';
+      const endTime     = r.endTime     || '';
+      const startPartial = r.startPartial != null ? r.startPartial : !isAllDayStart(startTime);
+      const endPartial   = r.endPartial   != null ? r.endPartial   : !isAllDayEnd(endTime);
+      return {
+        ...r,
+        start: parseLocalDate(r.start),
+        end:   parseLocalDate(r.end),
+        startTime,
+        endTime,
+        startPartial,
+        endPartial,
+        isPartial: startPartial || endPartial,
+      };
+    });
     sourceFiles = data.sourceFiles || [];
     renderFileTags();
     rebuildFilters();
@@ -632,29 +600,10 @@ function loadFromFirebase() {
     showControls();
     render();
     setFirebaseStatus('ok');
-    showToast('Loaded ' + allRecords.length + ' requests from Firebase ✓');
-  }).catch(err => {
-    setFirebaseStatus('error');
-    showToast('Firebase load FAILED: ' + err.message);
-    console.error('Firebase load error:', err);
-  });
+    showToast('Loaded ' + allRecords.length + ' requests ✓');
+  }).catch(err => { setFirebaseStatus('error'); showToast('Load failed: ' + err.message); });
 }
 
-// --- FIREBASE STATUS INDICATOR ---
-function setFirebaseStatus(status) {
-  const el = document.getElementById('fbStatus');
-  if (!el) return;
-  const states = {
-    loading: { dot: '#f59e0b', label: 'Connecting...' },
-    ok:      { dot: '#22c55e', label: 'Firebase synced' },
-    saving:  { dot: '#3b82f6', label: 'Saving...' },
-    error:   { dot: '#ef4444', label: 'Firebase error — check rules' },
-  };
-  const s = states[status] || states.ok;
-  el.innerHTML = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + s.dot + ';margin-right:6px;flex-shrink:0"></span>' + s.label;
-}
-
-// --- TOAST NOTIFICATION ---
 function showToast(msg) {
   let t = document.getElementById('toast');
   if (!t) {
@@ -666,17 +615,15 @@ function showToast(msg) {
   t.textContent = msg;
   t.style.opacity = '1';
   clearTimeout(t._tid);
-  t._tid = setTimeout(() => { t.style.opacity = '0'; }, 2500);
+  t._tid = setTimeout(() => t.style.opacity = '0', 2500);
 }
 
-const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+// ── File ingestion ─────────────────────────────────────────────────────────
 
 document.getElementById('fileInput').addEventListener('change', e => {
   [...e.target.files].forEach(readFile);
   e.target.value = '';
 });
-
 document.body.addEventListener('dragover', e => { e.preventDefault(); document.body.classList.add('drop-active'); });
 document.body.addEventListener('dragleave', () => document.body.classList.remove('drop-active'));
 document.body.addEventListener('drop', e => {
@@ -694,67 +641,85 @@ function readFile(file) {
       const ws = wb.Sheets[wb.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
       const records = parseRows(rows, file.name);
-      const approvedOnly = records.filter(r => r.status === 'Approved');
-      allRecords.push(...approvedOnly);
-      sourceFiles.push({ name: file.name, count: approvedOnly.length });
+      // Only keep Approved — Canceled, Denied, Pending are excluded
+      const approved = records.filter(r => /^approved$/i.test(r.status));
+      allRecords.push(...approved);
+      sourceFiles.push({ name: file.name, count: approved.length });
       renderFileTags();
       rebuildFilters();
       updateSummaryBar();
       showControls();
       render();
       saveToFirebase();
-      showToast('Saved ' + approvedOnly.length + ' approved requests from ' + file.name.replace(/\.[^.]+$/, ''));
+      showToast(approved.length + ' approved requests loaded from ' + file.name.replace(/\.[^.]+$/, ''));
     } catch(err) {
-      alert('Could not parse ' + file.name + '. Make sure it is a valid time-off export.');
+      alert('Could not parse ' + file.name + '. Make sure it is a valid time-off export.\n\n' + err.message);
     }
   };
   reader.readAsBinaryString(file);
 }
 
 function parseRows(rows, source) {
-  return rows.map(r => {
-    const get = (keys) => {
-      const k = Object.keys(r).find(k => keys.some(q => k.toLowerCase().includes(q.toLowerCase())));
-      return k ? String(r[k]).trim() : '';
+  return rows.map(row => {
+    // Helper: find a value by exact or partial column name match
+    // Exact-match column finder (no fuzzy fallback for ambiguous names)
+    const col = (...keys) => {
+      const rowKeys = Object.keys(row);
+      // 1. Try exact case-insensitive match
+      const k = rowKeys.find(k => keys.some(q => k.toLowerCase().trim() === q.toLowerCase().trim()));
+      if (k) return String(row[k]).trim();
+      // 2. Fallback: partial includes (only for unambiguous keys)
+      const k2 = rowKeys.find(k => keys.some(q => q.length > 5 && k.toLowerCase().includes(q.toLowerCase())));
+      return k2 ? String(row[k2]).trim() : '';
     };
-    const parseDate = (val) => {
-      if (!val || val === '') return null;
-      if (val instanceof Date) return val;
-      const s = String(val).trim();
-      // Date-only strings (e.g. "2026-07-11") must be parsed as LOCAL midnight.
-      // new Date("2026-07-11") parses as UTC midnight, which in any timezone
-      // behind UTC (all of the US) rolls back to the previous day once displayed
-      // locally — that's what was causing requests to appear a day early.
-      const isoMatch = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-      if (isoMatch) {
-        const [, y, mo, d] = isoMatch;
-        return new Date(Number(y), Number(mo) - 1, Number(d));
-      }
-      // Date + time strings like "2026-07-11 12:00 am" — strip the time and
-      // parse the date part as local, since these exports use start-of-day /
-      // end-of-day markers that don't carry real time-of-day information.
-      const isoDateTimeMatch = s.match(/^(\d{4})-(\d{2})-(\d{2})[ T]/);
-      if (isoDateTimeMatch) {
-        const [, y, mo, d] = isoDateTimeMatch;
-        return new Date(Number(y), Number(mo) - 1, Number(d));
-      }
-      const d = new Date(s);
-      return isNaN(d) ? null : d;
+    // Direct key access for columns with ambiguous names — 'Start Date' vs 'Start Time' etc.
+    const getExact = (exactKey) => {
+      const k = Object.keys(row).find(k => k.toLowerCase().trim() === exactKey.toLowerCase());
+      return k ? String(row[k]).trim() : '';
     };
+
+    const name      = col('name');
+    const type      = col('type');
+    const status    = col('status');
+    const startDate = getExact('start date') || col('startdate');
+    const startTime = getExact('start time') || col('starttime');
+    const endDate   = getExact('end date')   || col('enddate');
+    const endTime   = getExact('end time')   || col('endtime');
+    const paidHrs   = parseFloat(col('paid hours', 'paidhours')) || 0;
+    const unpaidHrs = parseFloat(col('unpaid hours', 'unpaidhours')) || 0;
+    const approvedBy = col('approved / denied by', 'approved by', 'approvedby', 'denied by');
+    const message   = col('message', 'note', 'comment');
+
+    const start = parseLocalDate(startDate);
+    const end   = parseLocalDate(endDate);
+    if (!name || !start || !end) return null;
+
+    // Detect partial-day: start isn't midnight or end isn't 11:59 pm
+    const startPartial = !isAllDayStart(startTime);
+    const endPartial   = !isAllDayEnd(endTime);
+    const isPartial    = startPartial || endPartial;
+
     return {
-      name: get(['name']),
-      type: get(['type']),
-      start: parseDate(r['Start Date'] || r['start date'] || r['StartDate'] || r['start']),
-      end: parseDate(r['End Date'] || r['end date'] || r['EndDate'] || r['end']),
-      paidHrs: parseFloat(r['Paid Hours'] || r['paid hours'] || 0) || 0,
-      unpaidHrs: parseFloat(r['Unpaid Hours'] || r['unpaid hours'] || 0) || 0,
-      status: get(['status']),
-      approvedBy: get(['approved', 'denied']),
-      message: get(['message', 'note', 'comment']),
-      source: source,
+      name,
+      type,
+      status,
+      start,
+      end,
+      startTime: fmtTime(startTime),
+      endTime:   fmtTime(endTime),
+      startPartial,
+      endPartial,
+      isPartial,
+      paidHrs,
+      unpaidHrs,
+      approvedBy,
+      message,
+      source,
     };
-  }).filter(r => r.name && r.start && r.end);
+  }).filter(Boolean);
 }
+
+// ── UI helpers ─────────────────────────────────────────────────────────────
 
 function removeFile(name) {
   allRecords = allRecords.filter(r => r.source !== name);
@@ -775,33 +740,66 @@ function removeFile(name) {
 
 function renderFileTags() {
   document.getElementById('fileTags').innerHTML = sourceFiles.map(f =>
-    '<div class="file-tag">' + f.name.replace(/\.[^.]+$/, '') + ' <span class="remove" onclick="removeFile(\'' + f.name.replace(/'/g, "\'") + '\')">×</span></div>'
+    '<div class="file-tag">' + f.name.replace(/\.[^.]+$/, '') +
+    ' <span class="remove" onclick="removeFile(\'' + f.name.replace(/'/g, "\\'") + '\')">×</span></div>'
   ).join('');
 }
 
+const EMPLOYEE_COLORS = [
+  { bg:'#dbeafe', fg:'#1e40af', border:'#3b82f6' },
+  { bg:'#dcfce7', fg:'#166534', border:'#22c55e' },
+  { bg:'#fce7f3', fg:'#9d174d', border:'#ec4899' },
+  { bg:'#fef9c3', fg:'#854d0e', border:'#eab308' },
+  { bg:'#ede9fe', fg:'#5b21b6', border:'#8b5cf6' },
+  { bg:'#ffedd5', fg:'#9a3412', border:'#f97316' },
+  { bg:'#cffafe', fg:'#155e75', border:'#06b6d4' },
+  { bg:'#fae8ff', fg:'#86198f', border:'#d946ef' },
+  { bg:'#d1fae5', fg:'#065f46', border:'#10b981' },
+  { bg:'#fee2e2', fg:'#991b1b', border:'#ef4444' },
+  { bg:'#e0f2fe', fg:'#075985', border:'#0ea5e9' },
+  { bg:'#fdf2f8', fg:'#9d174d', border:'#f472b6' },
+  { bg:'#f0fdf4', fg:'#14532d', border:'#4ade80' },
+  { bg:'#fefce8', fg:'#713f12', border:'#facc15' },
+  { bg:'#f5f3ff', fg:'#4c1d95', border:'#a78bfa' },
+  { bg:'#fff7ed', fg:'#7c2d12', border:'#fb923c' },
+];
+
+let nameColorMap = {};
+let colorIdx = 0;
+
+function getColor(name) {
+  if (nameColorMap[name] === undefined) nameColorMap[name] = colorIdx++;
+  return EMPLOYEE_COLORS[nameColorMap[name] % EMPLOYEE_COLORS.length];
+}
+
 function rebuildFilters() {
-  const names = [...new Set(allRecords.map(r => r.name))].sort();
+  // Reset color map to stay consistent across reloads
+  nameColorMap = {};
+  colorIdx = 0;
+  const sortedNames = [...new Set(allRecords.map(r => r.name))].sort();
+  sortedNames.forEach(n => getColor(n)); // pre-assign in sorted order
+
+  const names = sortedNames;
   const types = [...new Set(allRecords.map(r => r.type))].sort();
+
   const ns = document.getElementById('filterName');
   const cur = ns.value;
   ns.innerHTML = '<option value="">All employees</option>' + names.map(n => '<option value="' + n + '">' + n + '</option>').join('');
   ns.value = names.includes(cur) ? cur : '';
+
   const ts = document.getElementById('filterType');
   const curT = ts.value;
   ts.innerHTML = '<option value="">All types</option>' + types.map(t => '<option value="' + t + '">' + t + '</option>').join('');
   ts.value = types.includes(curT) ? curT : '';
+
   ns.onchange = ts.onchange = () => render();
 
-  // Rebuild employee color legend
   const leg = document.getElementById('employeeLegend');
   if (leg) {
-    const sortedNames = [...new Set(allRecords.map(r => r.name))].sort();
-    let ci = 0;
-    const nameCI = {};
-    allRecords.forEach(r => { if (nameCI[r.name] === undefined) nameCI[r.name] = ci++; });
-    leg.innerHTML = sortedNames.map(n => {
-      const col = EMPLOYEE_COLORS[nameCI[n] % EMPLOYEE_COLORS.length];
-      return '<div class="legend-item"><div class="legend-dot" style="background:' + col.border + '"></div>' + n.split(' ')[0] + ' ' + n.split(' ').slice(-1)[0] + '</div>';
+    leg.innerHTML = names.map(n => {
+      const col = getColor(n);
+      const short = n.split(' ')[0] + ' ' + (n.split(' ').slice(-1)[0] || '');
+      return '<div class="legend-item"><div class="legend-dot" style="background:' + col.border + '"></div>' + short + '</div>';
     }).join('');
   }
 }
@@ -814,7 +812,7 @@ function getFiltered() {
 
 function updateSummaryBar() {
   const bar = document.getElementById('summaryBar');
-  if (allRecords.length === 0) { bar.style.display = 'none'; return; }
+  if (!allRecords.length) { bar.style.display = 'none'; return; }
   bar.style.display = 'flex';
   const names = new Set(allRecords.map(r => r.name)).size;
   const totalHrs = allRecords.reduce((s, r) => s + r.paidHrs + r.unpaidHrs, 0);
@@ -834,7 +832,7 @@ function showControls() {
 function changeMonth(delta) {
   currentMonth += delta;
   if (currentMonth > 11) { currentMonth = 0; currentYear++; }
-  if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+  if (currentMonth < 0)  { currentMonth = 11; currentYear--; }
   updateMonthLabel();
   render();
 }
@@ -855,98 +853,49 @@ function render() {
   else renderList();
 }
 
-function typeClass(type) {
-  if (/personal/i.test(type)) return 'Personal';
-  if (/unpaid/i.test(type)) return 'Unpaid';
-  if (/holiday/i.test(type)) return 'Holiday';
-  return 'Other';
-}
-
-function fmtDate(d) {
-  if (!d) return '—';
-  return (d.getMonth()+1) + '/' + d.getDate() + '/' + d.getFullYear();
-}
-
-function daysBetween(start, end) {
-  const s = new Date(start); s.setHours(0,0,0,0);
-  const e = new Date(end); e.setHours(0,0,0,0);
-  const days = [];
-  while (s <= e) { days.push(new Date(s)); s.setDate(s.getDate()+1); }
-  return days;
-}
-
-// Per-employee color palette (12 distinct colors)
-const EMPLOYEE_COLORS = [
-  { bg: '#dbeafe', fg: '#1e40af', border: '#3b82f6' },
-  { bg: '#dcfce7', fg: '#166534', border: '#22c55e' },
-  { bg: '#fce7f3', fg: '#9d174d', border: '#ec4899' },
-  { bg: '#fef9c3', fg: '#854d0e', border: '#eab308' },
-  { bg: '#ede9fe', fg: '#5b21b6', border: '#8b5cf6' },
-  { bg: '#ffedd5', fg: '#9a3412', border: '#f97316' },
-  { bg: '#cffafe', fg: '#155e75', border: '#06b6d4' },
-  { bg: '#fae8ff', fg: '#86198f', border: '#d946ef' },
-  { bg: '#d1fae5', fg: '#065f46', border: '#10b981' },
-  { bg: '#fee2e2', fg: '#991b1b', border: '#ef4444' },
-  { bg: '#e0f2fe', fg: '#075985', border: '#0ea5e9' },
-  { bg: '#fdf2f8', fg: '#9d174d', border: '#f472b6' },
-  { bg: '#f0fdf4', fg: '#14532d', border: '#4ade80' },
-  { bg: '#fefce8', fg: '#713f12', border: '#facc15' },
-  { bg: '#f5f3ff', fg: '#4c1d95', border: '#a78bfa' },
-  { bg: '#fff7ed', fg: '#7c2d12', border: '#fb923c' },
-];
+// ── Calendar rendering ─────────────────────────────────────────────────────
 
 function renderCalendar() {
   const records = getFiltered();
   const today = new Date(); today.setHours(0,0,0,0);
 
-  const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+  const firstDay    = new Date(currentYear, currentMonth, 1).getDay();
   const daysInMonth = new Date(currentYear, currentMonth+1, 0).getDate();
-  const prevMonthDays = new Date(currentYear, currentMonth, 0).getDate();
+  const prevDays    = new Date(currentYear, currentMonth, 0).getDate();
 
-  // Build array of all 7-day weeks covering the month
+  // Build week arrays
   const weeks = [];
   let cells = [];
   for (let i = 0; i < firstDay; i++)
-    cells.push(new Date(currentYear, currentMonth - 1, prevMonthDays - firstDay + 1 + i));
+    cells.push(new Date(currentYear, currentMonth-1, prevDays - firstDay + 1 + i));
   for (let d = 1; d <= daysInMonth; d++) {
     cells.push(new Date(currentYear, currentMonth, d));
     if (cells.length === 7) { weeks.push(cells); cells = []; }
   }
-  if (cells.length > 0) {
+  if (cells.length) {
     let nm = 1;
-    while (cells.length < 7) cells.push(new Date(currentYear, currentMonth + 1, nm++));
+    while (cells.length < 7) cells.push(new Date(currentYear, currentMonth+1, nm++));
     weeks.push(cells);
   }
 
-  const d0 = d => { const x = new Date(d); x.setHours(0,0,0,0); return x; };
   const inMonth = d => d.getMonth() === currentMonth && d.getFullYear() === currentYear;
   const GAP = 3, DAY_TOP = 28, LANE_H = 22, LANE_GAP = 2;
 
-  // Assign a persistent color index to each unique employee name
-  const nameColorMap = {};
-  let colorIdx = 0;
-  records.forEach(r => { if (nameColorMap[r.name] === undefined) nameColorMap[r.name] = colorIdx++; });
-
   function renderWeek(weekDates) {
-    // For each record that overlaps this week, compute its column span
     const weekStart = d0(weekDates[0]);
     const weekEnd   = d0(weekDates[6]);
 
-    // Gather all records that appear in this week
-    const weekRecords = records.filter(r => {
-      const rs = d0(r.start), re = d0(r.end);
-      return rs <= weekEnd && re >= weekStart;
-    });
+    // Records overlapping this week
+    const weekRecs = records.filter(r => d0(r.start) <= weekEnd && d0(r.end) >= weekStart);
 
-    // Deduplicate (same person, same dates can appear once per week)
+    // Deduplicate by name+start+end
     const seen = new Set();
-    const unique = weekRecords.filter(r => {
+    const unique = weekRecs.filter(r => {
       const k = r.name + '|' + r.start + '|' + r.end;
-      if (seen.has(k)) return false;
-      seen.add(k); return true;
+      if (seen.has(k)) return false; seen.add(k); return true;
     });
 
-    // For each record, determine colStart and colEnd within this week (0-6)
+    // Compute column spans
     const spans = unique.map(r => {
       const rs = d0(r.start), re = d0(r.end);
       let colStart = 0, colEnd = 6;
@@ -955,25 +904,24 @@ function renderCalendar() {
         if (cd < rs) colStart = c + 1;
         if (cd <= re) colEnd = c;
       }
-      colEnd = Math.min(colEnd, 6);
       colStart = Math.max(colStart, 0);
+      colEnd   = Math.min(colEnd, 6);
       return {
-        record: r,
+        r,
         colStart,
         colEnd,
-        isStart: d0(r.start).getTime() >= weekStart.getTime() && d0(r.start).getTime() <= weekEnd.getTime(),
-        isEnd:   d0(r.end).getTime() >= weekStart.getTime() && d0(r.end).getTime() <= weekEnd.getTime(),
-        colorIdx: nameColorMap[r.name]
+        isStart: d0(r.start) >= weekStart && d0(r.start) <= weekEnd,
+        isEnd:   d0(r.end)   >= weekStart && d0(r.end)   <= weekEnd,
       };
     }).filter(s => s.colStart <= s.colEnd);
 
-    // Lane assignment: greedily pack spans into rows
-    // lanes[i] = array of {colStart, colEnd} already placed
+    // Greedy lane packing
     const lanes = [];
     const laneAssign = spans.map(span => {
       for (let li = 0; li < lanes.length; li++) {
-        const conflict = lanes[li].some(p => p.colStart <= span.colEnd && p.colEnd >= span.colStart);
-        if (!conflict) { lanes[li].push(span); return li; }
+        if (!lanes[li].some(p => p.colStart <= span.colEnd && p.colEnd >= span.colStart)) {
+          lanes[li].push(span); return li;
+        }
       }
       lanes.push([span]);
       return lanes.length - 1;
@@ -982,84 +930,104 @@ function renderCalendar() {
     const laneCount = lanes.length;
     const weekH = Math.max(112, DAY_TOP + laneCount * (LANE_H + LANE_GAP) + 8);
 
-    // Day cells (background layer)
+    // Day cells (background)
     const dayCells = weekDates.map(date => {
       const isOther = !inMonth(date);
-      const isTod = d0(date).getTime() === today.getTime();
+      const isTod   = d0(date).getTime() === today.getTime();
       return '<div class="calendar-day' + (isOther ? ' other-month' : '') + (isTod ? ' today' : '') +
         '" style="min-height:' + weekH + 'px"><div class="day-num">' + date.getDate() + '</div></div>';
     }).join('');
 
-    // Event span elements (overlay layer)
-    // CSS calc: col width = (100% - 18px) / 7, col left = col * (colWidth + 3px)
-    const CW = '(100% - 18px) / 7'; // single column width expression
+    // Event bars (overlay)
+    const CW = '(100% - 18px) / 7';
     const eventHtml = spans.map((span, si) => {
-      const li = laneAssign[si];
-      const top = DAY_TOP + li * (LANE_H + LANE_GAP);
-      const spanCount = span.colEnd - span.colStart + 1;
-      // left = colStart * (colW + gap)
-      const left = span.colStart === 0 ? '0px'
-        : 'calc(' + span.colStart + ' * (' + CW + ' + 3px))';
-      // width = spanCount * colW + (spanCount-1) * gap - insets
-      const iL = span.isStart ? 3 : 0;
-      const iR = span.isEnd ? 3 : 0;
-      const widthBase = spanCount === 1
+      const li   = laneAssign[si];
+      const top  = DAY_TOP + li * (LANE_H + LANE_GAP);
+      const cnt  = span.colEnd - span.colStart + 1;
+      const iL   = span.isStart ? 3 : 0;
+      const iR   = span.isEnd   ? 3 : 0;
+      const left = span.colStart === 0
+        ? iL + 'px'
+        : 'calc(' + span.colStart + ' * (' + CW + ' + 3px) + ' + iL + 'px)';
+      const width = cnt === 1
         ? 'calc(' + CW + ' - ' + (iL + iR) + 'px)'
-        : 'calc(' + spanCount + ' * (' + CW + ') + ' + ((spanCount-1)*GAP) + 'px - ' + (iL+iR) + 'px)';
-      const finalLeft = iL > 0
-        ? (span.colStart === 0 ? iL + 'px' : 'calc(' + span.colStart + ' * (' + CW + ' + 3px) + ' + iL + 'px)')
-        : left;
-
+        : 'calc(' + cnt + ' * (' + CW + ') + ' + ((cnt-1)*GAP) + 'px - ' + (iL+iR) + 'px)';
       const capClass = (span.isStart ? 'cap-start ' : '') + (span.isEnd ? 'cap-end' : '');
-      const ci = span.colorIdx % EMPLOYEE_COLORS.length;
-      const col = EMPLOYEE_COLORS[ci];
-      const nm = span.record.name.split(' ')[0] + ' ' + span.record.name.split(' ').slice(-1)[0];
-      const ridx = allRecords.indexOf(span.record);
+      const col = getColor(span.r.name);
+      const firstName = span.r.name.split(' ')[0];
+      const lastName  = span.r.name.split(' ').slice(-1)[0];
+      const nm = firstName + ' ' + lastName;
+
+      // Time label for partial-day events
+      let timeBadge = '';
+      if (span.r.isPartial) {
+        let label = '';
+        // startPartial = off starts mid-day → available BEFORE that time
+        if (span.isStart && span.r.startPartial) label = 'avail. until ' + span.r.startTime;
+        // endPartial = off ends mid-day → available AFTER that time
+        else if (span.isEnd && span.r.endPartial) label = 'avail. after ' + span.r.endTime;
+        if (label) timeBadge = '<span class="time-badge">(' + label + ')</span>';
+      }
+
+      const ridx = allRecords.indexOf(span.r);
       return '<div class="cal-event ' + capClass + '" ' +
-        'style="top:' + top + 'px;left:' + finalLeft + ';width:' + widthBase + ';' +
+        'style="position:absolute;top:' + top + 'px;left:' + left + ';width:' + width + ';pointer-events:all;' +
         'background:' + col.bg + ';color:' + col.fg + ';border-left-color:' + col.border + ';" ' +
-        'data-ridx="' + ridx + '" onclick="handleCalClick(event)">' + nm + '</div>';
+        'data-ridx="' + ridx + '" onclick="handleCalClick(event)">' +
+        nm + timeBadge + '</div>';
     }).join('');
 
     return '<div class="calendar-week" style="min-height:' + weekH + 'px">' +
-      '<div class="week-days" style="position:absolute;inset:0;display:grid;grid-template-columns:repeat(7,1fr);gap:3px;">' + dayCells + '</div>' +
-      '<div class="week-events" style="position:absolute;inset:0;pointer-events:none;">' + eventHtml + '</div>' +
+      '<div style="position:absolute;inset:0;display:grid;grid-template-columns:repeat(7,1fr);gap:3px;">' + dayCells + '</div>' +
+      '<div style="position:absolute;inset:0;pointer-events:none;">' + eventHtml + '</div>' +
       '</div>';
   }
 
   let html = '<div class="calendar-grid"><div class="day-headers">' +
     DAYS.map(d => '<div class="day-header">' + d + '</div>').join('') +
     '</div><div class="calendar-weeks">';
-  weeks.forEach(w => { html += renderWeek(w); });
+  weeks.forEach(w => html += renderWeek(w));
   html += '</div></div>';
   document.getElementById('mainContent').innerHTML = html;
 }
 
+// ── List rendering ─────────────────────────────────────────────────────────
 
 function renderList() {
   const records = getFiltered();
-  if (records.length === 0) {
+  if (!records.length) {
     document.getElementById('mainContent').innerHTML = '<div class="list-view"><p style="color:var(--muted);font-size:0.82rem;padding-top:8px;">No approved requests match the current filters.</p></div>';
     return;
   }
-
   const groups = {};
   records.forEach(r => {
     const key = MONTHS[r.start.getMonth()] + ' ' + r.start.getFullYear();
     if (!groups[key]) groups[key] = [];
     groups[key].push(r);
   });
-
   const sortedKeys = Object.keys(groups).sort((a, b) => new Date(a) - new Date(b));
 
   let html = '<div class="list-view">';
   sortedKeys.forEach(key => {
     const recs = groups[key].sort((a, b) => a.start - b.start);
-    html += '<div class="list-month-group"><div class="list-month-title">' + key + '</div><div class="list-header"><span>Employee</span><span>Type</span><span>Start</span><span>End</span><span>Hours</span><span>Source</span></div>';
+    html += '<div class="list-month-group"><div class="list-month-title">' + key + '</div>' +
+      '<div class="list-header"><span>Employee</span><span>Type</span><span>Start</span><span>End</span><span>Hours</span><span>Source</span></div>';
     recs.forEach(r => {
-      const tc = typeClass(r.type);
-      const hrs = r.paidHrs + r.unpaidHrs;
-      html += '<div class="list-row" onclick=\'showModal(' + JSON.stringify(r).replace(/'/g, "\'") + ')\'><span class="name-cell">' + r.name + '</span><span><span class="type-badge ' + tc + '">' + r.type + '</span></span><span class="date-cell">' + fmtDate(r.start) + '</span><span class="date-cell">' + fmtDate(r.end) + '</span><span class="hours-cell">' + hrs + 'h</span><span class="src-cell">' + r.source.replace(/\.[^.]+$/, '') + '</span></div>';
+      const tc   = typeClass(r.type);
+      const hrs  = r.paidHrs + r.unpaidHrs;
+      // Start/end date + time for partial days
+      const startStr = fmtShortDate(r.start) + (r.startPartial ? ' <span style="color:var(--red);font-size:0.72rem">from ' + r.startTime + '</span>' : '');
+      const endStr   = fmtShortDate(r.end)   + (r.endPartial   ? ' <span style="color:var(--red);font-size:0.72rem">until ' + r.endTime   + '</span>' : '');
+      const partialTag = r.isPartial ? '<span class="partial-badge">&#9200; Partial Day</span>' : '';
+      const safeR = JSON.stringify(r).replace(/'/g, "\\'").replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      html += '<div class="list-row" onclick=\'showModal(JSON.parse(this.dataset.r));\' data-r=\'' + JSON.stringify(r).replace(/'/g, '&#39;') + '\'>' +
+        '<span class="name-cell">' + r.name + partialTag + '</span>' +
+        '<span><span class="type-badge ' + tc + '">' + r.type + '</span></span>' +
+        '<span class="date-cell">' + startStr + '</span>' +
+        '<span class="date-cell">' + endStr + '</span>' +
+        '<span class="hours-cell">' + hrs + 'h</span>' +
+        '<span class="src-cell">' + r.source.replace(/\.[^.]+$/, '') + '</span>' +
+        '</div>';
     });
     html += '</div>';
   });
@@ -1067,33 +1035,44 @@ function renderList() {
   document.getElementById('mainContent').innerHTML = html;
 }
 
+// ── Modal ──────────────────────────────────────────────────────────────────
+
 function handleCalClick(e) {
   const ridx = parseInt(e.currentTarget.getAttribute('data-ridx'));
-  const filtered = getFiltered();
-  // ridx is index into allRecords, find the right record
-  const r = allRecords[ridx];
-  if (r) showModal(r);
+  if (allRecords[ridx]) showModal(allRecords[ridx]);
 }
 
 function showModal(r) {
-  document.getElementById('modalName').textContent = r.name;
+  // r.start/end may be strings (from data-r) or Date objects
+  const start = r.start instanceof Date ? r.start : parseLocalDate(r.start);
+  const end   = r.end   instanceof Date ? r.end   : parseLocalDate(r.end);
   const tc = typeClass(r.type);
+  const hrs = (r.paidHrs || 0) + (r.unpaidHrs || 0);
+
+  // Start / End display: include time if partial
+  // startPartial: off starts mid-day → avail. until that time
+  // endPartial:   off ends mid-day   → avail. after that time
+  const startDisplay = fmtDate(start) + (r.startPartial && r.startTime ? ' (avail. until ' + r.startTime + ')' : '');
+  const endDisplay   = fmtDate(end)   + (r.endPartial   && r.endTime   ? ' (avail. after ' + r.endTime   + ')' : '');
+  const partialNote  = r.isPartial ? '<div class="modal-row"><span class="modal-label">Schedule</span><span class="modal-val" style="color:var(--red)">&#9200; Partial Day</span></div>' : '';
+
+  document.getElementById('modalName').textContent = r.name;
   document.getElementById('modalBody').innerHTML =
     '<div class="modal-row"><span class="modal-label">Type</span><span class="modal-val"><span class="type-badge ' + tc + '">' + r.type + '</span></span></div>' +
-    '<div class="modal-row"><span class="modal-label">Start</span><span class="modal-val">' + fmtDate(new Date(r.start)) + '</span></div>' +
-    '<div class="modal-row"><span class="modal-label">End</span><span class="modal-val">' + fmtDate(new Date(r.end)) + '</span></div>' +
-    '<div class="modal-row"><span class="modal-label">Paid Hours</span><span class="modal-val">' + r.paidHrs + 'h</span></div>' +
-    '<div class="modal-row"><span class="modal-label">Unpaid Hours</span><span class="modal-val">' + r.unpaidHrs + 'h</span></div>' +
-    '<div class="modal-row"><span class="modal-label">Approved By</span><span class="modal-val">' + (r.approvedBy || '—') + '</span></div>' +
-    (r.message ? '<div class="modal-row"><span class="modal-label">Note</span><span class="modal-val">' + r.message + '</span></div>' : '') +
+    partialNote +
+    '<div class="modal-row"><span class="modal-label">Start</span><span class="modal-val">' + startDisplay + '</span></div>' +
+    '<div class="modal-row"><span class="modal-label">End</span><span class="modal-val">' + endDisplay + '</span></div>' +
+    '<div class="modal-row"><span class="modal-label">Paid Hrs</span><span class="modal-val">' + (r.paidHrs || 0) + 'h</span></div>' +
+    '<div class="modal-row"><span class="modal-label">Unpaid Hrs</span><span class="modal-val">' + (r.unpaidHrs || 0) + 'h</span></div>' +
+    (r.approvedBy ? '<div class="modal-row"><span class="modal-label">Approved By</span><span class="modal-val">' + r.approvedBy + '</span></div>' : '') +
+    (r.message    ? '<div class="modal-row"><span class="modal-label">Note</span><span class="modal-val">' + r.message + '</span></div>' : '') +
     '<div class="modal-row"><span class="modal-label">Source</span><span class="modal-val" style="color:var(--muted);font-size:0.72rem">' + r.source + '</span></div>';
   document.getElementById('modalOverlay').classList.add('open');
 }
 
 function closeModal(e) {
-  if (e.target === document.getElementById('modalOverlay')) {
+  if (e.target === document.getElementById('modalOverlay'))
     document.getElementById('modalOverlay').classList.remove('open');
-  }
 }
 
 document.addEventListener('keydown', e => {
@@ -1104,6 +1083,8 @@ function clearAll() {
   if (!confirm('Clear all loaded reports and saved data?')) return;
   allRecords = [];
   sourceFiles = [];
+  nameColorMap = {};
+  colorIdx = 0;
   db.ref(STORE_KEY).remove();
   renderFileTags();
   document.getElementById('controls').style.display = 'none';
@@ -1114,7 +1095,7 @@ function clearAll() {
   showToast('All data cleared');
 }
 
-// Load saved data on startup
+// Startup
 loadFromFirebase();
 </script>
 </body>
